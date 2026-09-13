@@ -1,0 +1,323 @@
+<?php
+
+/*
+ * This file is part of ernestdefoe/warren.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+use ErnestDefoe\Warren\Access;
+use ErnestDefoe\Warren\Api;
+use ErnestDefoe\Warren\SharedSchema;
+use ErnestDefoe\Warren\Vote;
+use Flarum\Api\Context;
+use Flarum\Api\Endpoint;
+use Flarum\Api\Resource;
+use Flarum\Api\Sort\SortColumn;
+use Flarum\Discussion\Discussion;
+use Flarum\Extend;
+use Flarum\Frontend\Document;
+use Flarum\Post\Post;
+use Flarum\Settings\SettingsRepositoryInterface;
+
+/**
+ * The column and value a vote in this direction is stored as.
+ *
+ * 🚨 Neither is a constant. The direction lives in `type` ('Up'/'Down') on a
+ * forum that has only ever run Warren and in `value` (1/-1) once
+ * fof/gamification has migrated the table -- see SharedSchema. Resolved at
+ * call time rather than at boot so the answer cannot be cached from before a
+ * migration ran.
+ *
+ * @return array{string, int|string}
+ */
+function votesOfDirection(int $direction): array
+{
+    $schema = resolve(SharedSchema::class);
+
+    return [$schema->voteColumn(), $schema->encode($direction)];
+}
+
+return [
+    (new Extend\Frontend('forum'))
+        ->js(__DIR__.'/js/dist/forum.js')
+        ->css(__DIR__.'/less/forum.less')
+        /*
+         * Stamped on <html> by the server, not set from JS on first draw.
+         *
+         * Every colour and every width in the stylesheet hangs off this
+         * attribute. Applying it after the bundle boots means the first paint
+         * is unstyled and the page visibly reflows — the flash a theme is
+         * judged by, on the one load where a reader has nothing else to look
+         * at.
+         */
+        ->content(function (Document $document) {
+            $density = resolve(SettingsRepositoryInterface::class)
+                ->get('ernestdefoe-warren.density', 'card');
+
+            $density = in_array($density, ['card', 'compact'], true) ? $density : 'card';
+
+            /*
+             * 🚨 A CLOSURE, not the string itself. This is not style.
+             *
+             * Core renders extraAttributes through
+             * `if (is_callable($value)) { $value = $value($this->request); }`
+             * — and `is_callable()` says TRUE for any string that names a PHP
+             * function. The stored value here is the word `compact`, which is
+             * a PHP function, so handing core the bare string made it CALL it:
+             *
+             *     Error: Cannot call compact() dynamically
+             *
+             * That is a 500 on every page of the forum, produced by choosing
+             * an ordinary English word in an admin dropdown. And it is not
+             * specific to this word — `list`, `sort`, `key`, `min`, `max`,
+             * `count`, `date`, `link`, `header` and dozens more are all PHP
+             * functions, so any future value could do it again.
+             *
+             * A closure is callable on purpose: core invokes it, gets the
+             * string back, and no value can ever be mistaken for a function
+             * name again. Fixing only today's word would leave the trap set.
+             */
+            $document->extraAttributes['data-warren'] = fn () => $density;
+        }),
+
+    (new Extend\Frontend('admin'))
+        ->js(__DIR__.'/js/dist/admin.js')
+        ->css(__DIR__.'/less/admin.less'),
+
+    new Extend\Locales(__DIR__.'/locale'),
+
+    /*
+     * The actor's own vote on a discussion, in one query for a whole page.
+     *
+     * 🚨 Hung off `first_post_id` rather than off a loaded `firstPost`. Going
+     * through the post relation would be the obvious spelling and it costs an
+     * extra query that drags twenty post bodies across the wire to find out
+     * which way twenty arrows point. The discussion already carries the id.
+     */
+    (new Extend\Model(Discussion::class))
+        ->hasMany('warrenVotes', Vote::class, 'post_id', 'first_post_id'),
+
+    /*
+     * Three relations over the same rows, and the extra two are not
+     * convenience.
+     *
+     * 🚨 Flarum buffers relation aggregates under a key built from the
+     * COLUMN and the FUNCTION, not from the field name
+     * (EloquentBuffer::add). Two counted subqueries over one relation --
+     * upvotes and downvotes, each with its own `where` -- therefore share a
+     * single slot: the first one loads, the second reads the first one's
+     * attribute and serialises as null. It looks exactly like a field that
+     * was never registered.
+     *
+     * Naming the relations apart is what separates the slots. It is also what
+     * fof/gamification does, for what is very likely the same reason.
+     *
+     * 🚨 And the relation names must differ from the FIELD names too.
+     * Resolving an aggregate, core looks for a field whose name equals the
+     * relation name and hands it to EloquentBuffer as the relationship. A
+     * field called `warrenUpvotes` reading a relation called `warrenUpvotes`
+     * finds ITSELF — an Integer where a Relationship is required — and every
+     * request for a post dies with a TypeError from inside core. Hence
+     * `warrenVotesUp`, which nothing else answers to.
+     */
+    (new Extend\Model(Post::class))
+        ->hasMany('warrenVotes', Vote::class, 'post_id')
+        ->relationship(
+            'warrenVotesUp',
+            fn (Post $post) => $post->hasMany(Vote::class, 'post_id')
+                ->where(...votesOfDirection(1))
+        )
+        ->relationship(
+            'warrenVotesDown',
+            fn (Post $post) => $post->hasMany(Vote::class, 'post_id')
+                ->where(...votesOfDirection(-1))
+        ),
+
+    /*
+     * 🚨 Every one of these has a READER, and the reader is named beside it.
+     *
+     * A setting with no reader is the commonest bug in this codebase's history:
+     * built, worded, styled, saved to the database, and doing nothing. The
+     * admin page is generated from this list, so anything added here without
+     * wiring it is a control that lies.
+     */
+    (new Extend\Settings())
+        // read by the document stamp above, and by [data-warren='compact']
+        ->default('ernestdefoe-warren.density', 'card')
+        // read by the index endpoint's defaultSort, and by addSortOptions
+        ->default('ernestdefoe-warren.default_sort', 'hot')
+        ->serializeToForum('warrenDefaultSort', 'ernestdefoe-warren.default_sort')
+        // read by addRightRail
+        ->default('ernestdefoe-warren.show_about', true)
+        ->serializeToForum('warrenShowAbout', 'ernestdefoe-warren.show_about', 'boolval')
+        // read by ThreadTree
+        ->default('ernestdefoe-warren.thread_depth', 8)
+        // read by the HashtagCloud widget
+        ->default('ernestdefoe-warren.hashtag_count', 24)
+        ->serializeToForum('warrenHashtagCount', 'ernestdefoe-warren.hashtag_count', 'intval'),
+
+    (new Extend\ApiResource(Resource\ForumResource::class))
+        ->fields(Api\ForumResourceFields::class),
+
+    (new Extend\ApiResource(Resource\DiscussionResource::class))
+        ->fields(Api\DiscussionResourceFields::class)
+
+        /*
+         * 🚨 Index ONLY, and split from the block below for that reason.
+         *
+         * `defaultSort` exists on Endpoint\Index and on nothing else. Folding
+         * it into a mutator registered for `['index', 'show']` is a fatal on
+         * EVERY page of the forum — the extender applies the callback to each
+         * named endpoint in turn, so the Show endpoint reaches an undefined
+         * method during boot and the site 500s before it renders anything.
+         */
+        ->endpoint('index', function (Endpoint\Index $endpoint): Endpoint\Index {
+            $rank = resolve(SharedSchema::class)->rankColumn();
+
+            /*
+             * 🚨 Hot is the default, and it needs a TIE-BREAK to be an
+             * ordering at all.
+             *
+             * The ranking is reddit's, and reddit's returns exactly 0 for
+             * every discussion with a score of 0 — the sign term zeroes the
+             * time term. On a forum nobody has voted on yet that is EVERY
+             * discussion, so sorting on the column alone hands back rows in
+             * whatever order the database felt like, and the front page of a
+             * new install looks shuffled.
+             *
+             * `-createdAt` after it costs nothing once scores exist and makes
+             * the empty case read as newest-first, which is what a forum with
+             * no votes should look like.
+             *
+             * Fixing this in the arithmetic instead — seeding zero-score rows
+             * with their age — was the other option and it is the wrong one:
+             * the column is shared, and an extension that writes a different
+             * number than its neighbour for the same row is how a front page
+             * reorders itself depending on who touched it last.
+             */
+            /*
+             * The operator can put the forum back on Latest.
+             *
+             * 🚨 When they do, Warren adds NO default at all rather than
+             * naming `-lastPostedAt` itself. Core already defaults to that,
+             * and a theme restating another component's default is a second
+             * place to change it — they drift, and the one nobody edited wins.
+             */
+            if (resolve(SettingsRepositoryInterface::class)->get('ernestdefoe-warren.default_sort', 'hot') !== 'hot') {
+                return $endpoint;
+            }
+
+            return $endpoint->defaultSort('-'.$rank.',-createdAt');
+        })
+
+        ->endpoint(['index', 'show'], function (Endpoint\Index|Endpoint\Show $endpoint) {
+            return $endpoint
+                /*
+                 * 🚨 The WHOLE post, never a column subset.
+                 *
+                 * The preview needs `parsed_content`, and the obvious saving
+                 * is to select only that. It is the wrong saving: this eager
+                 * load is SHARED, so the moment any other extension includes
+                 * `firstPost` on the discussion index, those posts are
+                 * serialised from the models Warren narrowed and reach the
+                 * browser with a null `createdAt`. Flarum's store keeps the
+                 * half-loaded Post, and core's PostStream dereferences that
+                 * date without a guard — every discussion page then renders
+                 * blank. That is a real bug, reported against Cascade, and
+                 * impossible to reproduce without the other extension
+                 * present, which is what made it look like somebody else's.
+                 */
+                ->eagerLoad('firstPost')
+
+                /*
+                 * 🚨 Constrained by ROW, never by column.
+                 *
+                 * `where user_id` narrows which rows come back, which is this
+                 * extension's business. Narrowing the COLUMNS of a relation is
+                 * what blanked discussion pages in Cascade — another extension
+                 * included the relation, serialised the half-loaded models,
+                 * and the frontend store kept posts with a null `createdAt`.
+                 *
+                 * `warrenVotes` is Warren's own relation under its own name,
+                 * so nothing else can be asking for it — and it still is not
+                 * column-narrowed, because that argument holds until the day
+                 * somebody else has a reason to.
+                 */
+                ->eagerLoadWhere('warrenVotes', function ($query, Context $context) {
+                    // A guest has no votes to find. Coercing to 0 rather than
+                    // skipping keeps the relation MARKED loaded, which is what
+                    // tells the field the difference between "no vote" and
+                    // "never asked" — a null id would match nothing but still
+                    // leave the field guessing.
+                    $query->where('user_id', $context->getActor()->id ?? 0);
+                });
+        }),
+
+    (new Extend\ApiResource(Resource\PostResource::class))
+        ->fields(Api\PostResourceFields::class)
+        ->endpoint(['index', 'show', 'update'], function (Endpoint\Index|Endpoint\Show|Endpoint\Update $endpoint) {
+            /*
+             * One query for a whole thread's worth of arrows.
+             *
+             * Constrained by ROW to this actor, never by column - the same
+             * rule as the discussion index, and for the same reason.
+             */
+            return $endpoint->eagerLoadWhere('warrenVotes', function ($query, Context $context) {
+                $query->where('user_id', $context->getActor()->id ?? 0);
+            });
+        }),
+
+    /*
+     * 🚨 Warren's own voting stands down when fof/gamification is enabled.
+     *
+     * Both read and write the same rows — see the migrations — so this is
+     * purely about not drawing two vote controls on one post, not registering
+     * the same sort twice, and not having two sets of listeners recompute the
+     * same denormalised totals. There is no data hand-off, nothing to import
+     * and nothing stranded, which is the entire reason the schema was shared
+     * rather than invented.
+     *
+     * The READ fields above are unconditional for the same reason: they report
+     * whatever is in the shared columns, whoever wrote it.
+     *
+     * The STYLING is never conditional either. Warren styles gamification's
+     * controls to look like the rest of the theme, so a forum that switches
+     * does not end up with a Reddit layout and somebody else's buttons in the
+     * middle of it.
+     */
+    (new Extend\Conditional())
+        ->whenExtensionDisabled('fof-gamification', fn () => [
+            (new Extend\Policy())
+                ->modelPolicy(Post::class, Access\PostPolicy::class),
+
+            (new Extend\ApiResource(Resource\PostResource::class))
+                ->fields(Api\PostVoteField::class),
+
+            /*
+             * Hot and Top.
+             *
+             * The column behind Hot is asked for rather than named:
+             * gamification 2.x renames `hotness` to `trending`, and a forum
+             * that installed it and later turned it off keeps the new name
+             * while falling back to Warren's sorts.
+             *
+             * The ALIASES are what the frontend asks for, and they are stable
+             * across both. Core already spends `top` on comment count, so
+             * Warren's Top is `-warrenScore` — an alias nobody else claims
+             * beats a nicer word that collides.
+             */
+            (new Extend\ApiResource(Resource\DiscussionResource::class))
+                ->sorts(fn () => [
+                    SortColumn::make(resolve(SharedSchema::class)->rankColumn())
+                        ->descendingAlias('hot'),
+                    SortColumn::make('votes')
+                        ->descendingAlias('warrenScore'),
+                ]),
+
+            (new Extend\Settings())
+                ->default('ernestdefoe-warren.allow_self_votes', true)
+                ->serializeToForum('warrenCanVoteHere', 'ernestdefoe-warren.allow_self_votes', 'boolval'),
+        ]),
+];

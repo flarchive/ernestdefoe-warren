@@ -1,0 +1,365 @@
+// ============================================================================
+// The feed row
+//
+// Core builds DiscussionListItem from ItemLists, so Warren adds to it rather
+// than replacing it:
+//
+//   .DiscussionListItem
+//     .DiscussionListItem-content
+//       .Warren-byline                  (new)  avatar, community, when
+//       .DiscussionListItem-main        core's title + info line, untouched
+//       .Warren-actions                 (new)  vote pill, comments, share
+//     .DiscussionListItem-controls      the ... menu
+//
+// 🚨 The vote control is a HORIZONTAL PILL at the foot of the post, not a
+// column down its left. The left gutter is the old layout; the one this theme
+// is named after moved the arrows into the action strip years ago, and getting
+// that wrong is the single change that stops the page reading right no matter
+// how well the colours match.
+//
+// Nothing is re-parented. Lifting core's items into a wrapper of Warren's own
+// would produce the same picture and break every extension that walks the DOM
+// for `.DiscussionListItem-main`.
+// ============================================================================
+
+/*
+ * Undo the tablet-up bleed.
+ *
+ * At @tablet-up core pulls the row 15px outside its own box on both sides,
+ * pads it back, and tints it on hover. Warren does its own hover on its own
+ * box, so core's has to go or the two paint different rectangles.
+ */
+[data-warren] .DiscussionListItem {
+  position: relative;
+  margin: 0 0 var(--wr-row-gap);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transition: none;
+}
+
+[data-warren] .DiscussionListItem:hover {
+  background: transparent;
+}
+
+// -- The post ---------------------------------------------------------------
+//
+// No border and no card. Posts sit directly on the ground, separated by air,
+// and the whole block lifts on hover. A bordered card would be the obvious
+// thing to build and is exactly what the reference stopped doing.
+[data-warren] .DiscussionListItem-content {
+  display: block;
+  padding: var(--wr-row-pad-y) var(--wr-row-pad-x) 4px;
+  border-radius: var(--wr-radius);
+  background: transparent;
+  color: var(--wr-ink);
+  transition: background-color 0.1s ease;
+}
+
+[data-warren] .DiscussionListItem:hover .DiscussionListItem-content {
+  background: var(--wr-hover);
+}
+
+// A hairline between posts, and none after the last one - a divider with
+// nothing under it is a line drawn across the bottom of the page.
+[data-warren] .DiscussionList-discussions > li:not(:last-child) .DiscussionListItem::after {
+  content: '';
+  display: block;
+  height: 1px;
+  margin: 0 var(--wr-row-pad-x);
+  background: var(--wr-line);
+}
+
+// -- The byline -------------------------------------------------------------
+.Warren-byline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0 6px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--wr-ink-faint);
+}
+
+.Warren-community {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--wr-ink);
+}
+
+.Warren-community:hover {
+  color: var(--wr-ink);
+  text-decoration: underline;
+}
+
+// The community mark. A tag with a colour gets its colour; a forum with no
+// tags gets a neutral disc rather than a gap where a picture should be.
+.Warren-community-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--wr-pill-hover);
+}
+
+.Warren-byline-meta {
+  color: var(--wr-ink-faint);
+}
+
+.Warren-byline-meta a {
+  color: var(--wr-ink-faint);
+}
+
+.Warren-byline-meta a:hover {
+  color: var(--wr-ink-dim);
+  text-decoration: underline;
+}
+
+.Warren-byline-sep {
+  margin: 0 4px;
+  color: var(--wr-ink-faint);
+}
+
+.Warren-byline .DiscussionListItem-badges {
+  margin: 0;
+  padding: 0;
+}
+
+// -- Title and info ---------------------------------------------------------
+[data-warren] .DiscussionListItem-main {
+  display: block;
+  padding: 0;
+}
+
+[data-warren] .DiscussionListItem-title {
+  display: block;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--wr-ink);
+  // A title is the one place a ragged last word reads as sloppy.
+  text-wrap: balance;
+}
+
+[data-warren] .DiscussionListItem:hover .DiscussionListItem-title {
+  color: var(--wr-ink);
+}
+
+/*
+ * The info line stays, minus the two items the byline and the action strip
+ * have already said.
+ *
+ * Hiding the whole line would be simpler and would take every OTHER
+ * extension's info item with it - exactly the contributions a theme has no
+ * business dropping. Two display rules cost nothing and leave the list open.
+ */
+[data-warren] .DiscussionListItem-info {
+  margin: 4px 0 0;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--wr-ink-faint);
+}
+
+[data-warren] .DiscussionListItem-info > .item-tags,
+[data-warren] .DiscussionListItem-info > .item-terminalPost {
+  display: none;
+}
+
+[data-warren] .DiscussionListItem-info:empty {
+  display: none;
+}
+
+// The stats bubble duplicates the comment count in the action strip, in a
+// shape that belongs to a different layout.
+[data-warren] .DiscussionListItem-stats {
+  display: none;
+}
+
+// -- The action strip -------------------------------------------------------
+.Warren-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 4px;
+}
+
+// Every control in the strip is the same pill, which is what makes the bottom
+// of a post read as one object rather than as three loose buttons.
+.Warren-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--wr-pill-h);
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--wr-radius-pill);
+  background: var(--wr-pill);
+  color: var(--wr-ink-dim);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.Warren-action:hover {
+  background: var(--wr-pill-hover);
+  color: var(--wr-ink);
+  text-decoration: none;
+}
+
+.Warren-action .icon {
+  font-size: 14px;
+}
+
+// -- The vote pill ----------------------------------------------------------
+.Warren-votes {
+  display: inline-flex;
+  align-items: center;
+  height: var(--wr-pill-h);
+  padding: 0 4px;
+  border-radius: var(--wr-radius-pill);
+  background: var(--wr-pill);
+}
+
+// The pill takes the vote's colour once a side has been chosen, which is how
+// a reader sees their own vote from across the page rather than by squinting
+// at one small arrow.
+.Warren-votes--up {
+  background: var(--wr-up);
+}
+
+.Warren-votes--down {
+  background: var(--wr-down);
+}
+
+.Warren-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--wr-ink-dim);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.Warren-arrow:hover {
+  background: var(--wr-pill-hover);
+  color: var(--wr-ink);
+}
+
+.Warren-arrow:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.Warren-arrow:disabled:hover {
+  background: transparent;
+}
+
+.Warren-arrow .icon {
+  font-size: 14px;
+}
+
+.Warren-score {
+  min-width: 20px;
+  padding: 0 2px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  // Digits in a control that redraws on every vote. Without this the score
+  // visibly jitters as 9 becomes 10 and the arrows shuffle sideways with it.
+  font-variant-numeric: tabular-nums;
+  color: var(--wr-ink-dim);
+}
+
+// On a coloured pill everything inside it goes white, arrows included.
+.Warren-votes--up .Warren-arrow,
+.Warren-votes--up .Warren-score,
+.Warren-votes--down .Warren-arrow,
+.Warren-votes--down .Warren-score {
+  color: var(--wr-accent-ink);
+}
+
+.Warren-votes--up .Warren-arrow:hover,
+.Warren-votes--down .Warren-arrow:hover {
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--wr-accent-ink);
+}
+
+// The ... menu, top right of the post and out of the title's way.
+[data-warren] .DiscussionListItem-controls {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+}
+
+[data-warren] .DiscussionListItem-controls .Dropdown-toggle {
+  color: var(--wr-ink-faint);
+}
+
+// -- The preview ------------------------------------------------------------
+//
+// A post leads with its picture, or with its opening words, never both. A row
+// carrying an image AND three lines of prose is taller than two rows that each
+// carry one, and a feed is a list before it is a gallery.
+.Warren-media {
+  display: block;
+  margin: 8px 0 0;
+  border-radius: var(--wr-radius-sm);
+  overflow: hidden;
+  background: var(--wr-surface);
+}
+
+.Warren-media img {
+  display: block;
+  width: 100%;
+  // Tall images are cropped rather than allowed to run: one portrait photo
+  // should not push every post below it off the screen.
+  max-height: 512px;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.Warren-excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--wr-ink-dim);
+}
+
+.Warren-excerpt:hover {
+  color: var(--wr-ink-dim);
+  text-decoration: none;
+}
+
+/*
+ * 🚨 fof/gamification's own vote display on a row is hidden, not left beside
+ * Warren's.
+ *
+ * Warren stands its WRITES down on a gamification forum, never its UI — the
+ * arrows in the action strip drive gamification's endpoint so the theme stays
+ * one theme. The consequence is that gamification also renders its own count
+ * in the row, and a post showing two tallies of the same votes is worse than
+ * either alone.
+ *
+ * Hidden in CSS rather than removed from the ItemList in JS: the item belongs
+ * to another extension, and a theme has no business editing another
+ * extension's contributions where something else might be reading them.
+ */
+[data-warren] .DiscussionListItem-content .item-discussion-votes,
+[data-warren] .DiscussionListItem-content .DiscussionListItem-votes {
+  display: none;
+}
