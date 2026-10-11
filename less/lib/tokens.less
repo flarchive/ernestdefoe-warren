@@ -1,0 +1,150 @@
+// ============================================================================
+// Tokens
+//
+// Two rules govern this file, both learned the hard way in Cascade.
+//
+// 1. Colour is declared inside core's own [data-theme^=light|dark] blocks,
+//    never behind prefers-color-scheme. rc.8 ships four modes - light, dark,
+//    light-hc, dark-hc - with a real user preference behind them. A theme that
+//    keys off the media query fights that preference and leaves both
+//    high-contrast modes unstyled.
+//
+// 2. Warren sets core variables that core actually defines, and namespaces
+//    everything of its own as --wr-*. It never invents an alias pointing at a
+//    variable core does not define: such a declaration is invalid at
+//    computed-value time, the property falls back to INHERITANCE, and you get
+//    white-on-white in places nobody tests.
+// ============================================================================
+
+// -- Geometry ---------------------------------------------------------------
+//
+// The radii are the giveaway. This layout is built from large soft rectangles
+// and fully round pills, not from the 4px corners a forum theme reaches for by
+// default - get those two numbers wrong and no amount of colour matching makes
+// the page read right.
+:root {
+  --wr-rail-left:     272px;
+  --wr-rail-right:    316px;
+  --wr-feed-width:    752px;
+  --wr-gap:           24px;
+
+  --wr-radius:        16px;
+  --wr-radius-sm:     8px;
+  --wr-radius-pill:   999px;
+
+  --wr-row-pad-x:     16px;
+  --wr-row-pad-y:     8px;
+  --wr-row-gap:       0px;
+
+  --wr-avatar:        20px;
+
+  // The action pills. 32px is the height every control in the row shares, and
+  // it is what makes the bottom of a post read as one strip rather than as
+  // three unrelated buttons.
+  --wr-pill-h:        32px;
+
+  --container-hd:     1408px;
+  --container-xl:     1408px;
+  --container-xxl:    1408px;
+}
+
+// Compact density: the classic dense list. Same anatomy, less air.
+[data-warren='compact'] {
+  --wr-row-pad-y:     4px;
+  --wr-radius:        8px;
+  --wr-pill-h:        28px;
+}
+
+// -- Light ------------------------------------------------------------------
+[data-theme^='light'] {
+  --wr-ground:        #ffffff;
+  --wr-surface:       #f6f8f9;
+  --wr-surface-alt:   #ffffff;
+  --wr-hover:         #f2f4f5;
+  --wr-pill:          #eaedef;
+  --wr-pill-hover:    #dfe3e6;
+
+  --wr-line:          #e5ebee;
+  --wr-line-soft:     #eceff1;
+  --wr-line-strong:   #d2dadd;
+
+  --wr-ink:           #0f1a1c;
+  --wr-ink-dim:       #5c6c74;
+  --wr-ink-faint:     #6a737c;
+
+  --wr-accent:        #d93a00;
+  --wr-accent-ink:    #ffffff;
+  --wr-up:            #d93a00;
+  --wr-down:          #5a6fd6;
+
+  --wr-header-bg:     #ffffff;
+}
+
+// -- Dark -------------------------------------------------------------------
+//
+// The ground is near-black and the panels are lifted off it by a few points of
+// lightness rather than by a border. A 1px line at these values reads as a
+// seam; the absence of one is most of why the dark version looks the way it
+// does.
+[data-theme^='dark'] {
+  --wr-ground:        #0e1113;
+  --wr-surface:       #181c1f;
+  --wr-surface-alt:   #131619;
+  --wr-hover:         #131619;
+  --wr-pill:          #1e2225;
+  --wr-pill-hover:    #2a3236;
+
+  --wr-line:          #1e2225;
+  --wr-line-soft:     #181c1f;
+  --wr-line-strong:   #2a3236;
+
+  --wr-ink:           #eef1f3;
+  --wr-ink-dim:       #b7c0c4;
+  --wr-ink-faint:     #8ba0a8;
+
+  --wr-accent:        #ff4500;
+  --wr-accent-ink:    #ffffff;
+  --wr-up:            #ff4500;
+  --wr-down:          #7193ff;
+
+  --wr-header-bg:     #0e1113;
+}
+
+// The high-contrast modes inherit the ramp above through the ^= prefix match,
+// then take a stronger text colour so the two do not fight.
+[data-theme='light-hc'] { --wr-ink: #000; --wr-ink-dim: #333; --wr-line: #000; }
+[data-theme='dark-hc']  { --wr-ink: #fff; --wr-ink-dim: #ddd; --wr-line: #fff; }
+
+/*
+ * 🚨 Scoped to the LIST, never set at :root.
+ *
+ * Warren draws its own byline, so core's fixed avatar column would be dead
+ * space down the left of every row — but the same variable drives the avatar
+ * gutter in the POST STREAM, where the avatar is still there. Zeroing it
+ * globally pulled every post body left underneath its own author picture, so
+ * the first line of every post was drawn through the avatar. It looked like a
+ * broken post renderer and it was one declaration in the wrong place.
+ */
+[data-warren] .DiscussionList {
+  --avatar-column-width: 0px;
+}
+
+// The forum's own ground. Without an explicit background here the page keeps
+// whatever core painted and every panel above floats on the wrong colour.
+body,
+[data-warren] .App {
+  background: var(--wr-ground);
+}
+
+/*
+ * The scrollbar.
+ *
+ * Invisible to every automated check: headless Chrome and the in-app browser
+ * pane both report a scrollbar width of 0 and screenshot nothing there, so an
+ * unstyled track beside a near-black page reads as a pale stripe that only the
+ * person at a real browser can see. Five rounds went into chasing that stripe
+ * in Cascade before anyone thought to name it.
+ */
+[data-warren] {
+  scrollbar-color: var(--wr-line-strong) var(--wr-ground);
+}
