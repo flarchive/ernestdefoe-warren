@@ -1,0 +1,67 @@
+// ============================================================================
+// The sort bar
+//
+// The index toolbar carries real controls - sort, mark-all-read, refresh - and
+// a feed that quietly drops the sort control is a feed whose readers cannot
+// find their own discussions. It is stripped back to plain text buttons on the
+// page's own ground, never hidden: the sort belongs above the posts without
+// being a piece of furniture in its own right.
+// ============================================================================
+
+[data-warren] .IndexPage-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  padding: 4px var(--wr-row-pad-x);
+  background: transparent;
+  border: 0;
+}
+
+[data-warren] .IndexPage-toolbar-view,
+[data-warren] .IndexPage-toolbar-action {
+  float: none;
+  margin: 0;
+}
+
+[data-warren] .IndexPage-toolbar-action {
+  margin-left: auto;
+}
+
+[data-warren] .IndexPage-toolbar .Button {
+  height: var(--wr-pill-h);
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--wr-radius-pill);
+  background: transparent;
+  color: var(--wr-ink-dim);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+[data-warren] .IndexPage-toolbar .Button:hover,
+[data-warren] .IndexPage-toolbar .Button:focus {
+  background: var(--wr-pill);
+  color: var(--wr-ink);
+}
+
+// A divider under the sort row, the same hairline that separates posts.
+[data-warren] .DiscussionList {
+  border-top: 1px solid var(--wr-line);
+  padding-top: 4px;
+}
+
+// The hero above the feed is core's, and on an index that opens straight into
+// a list of posts it is one full-width band of colour the layout does not use.
+// It is left visible and only brought onto the same ground, because a forum
+// that has written a welcome message should still get to show it.
+[data-warren] .Hero {
+  background: var(--wr-surface);
+  border-radius: var(--wr-radius);
+  color: var(--wr-ink);
+}
+
+[data-warren] .Hero .Hero-title,
+[data-warren] .Hero .Hero-subtitle {
+  color: var(--wr-ink);
+}
