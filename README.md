@@ -2,13 +2,16 @@
 
 > **Read-only archive of released versions of ernestdefoe/warren.** Not for installation: use [Packagist](https://packagist.org/packages/ernestdefoe/warren) or the [upstream repository](https://github.com/ernestdefoe/warren).
 
-**0** versions archived · Latest: [`v1.0.3`](https://github.com/flarchive/ernestdefoe-warren/tree/archive/v1.0.3) · License: `MIT` · Flarum: `^2.0`
+**4** versions archived · Latest: [`v1.0.3`](https://github.com/flarchive/ernestdefoe-warren/tree/archive/v1.0.3) · License: `MIT` · Flarum: `^2.0`
 
 ## Archived Versions
 
 | Version | Released | Flarum | Source |
 |---|---|---|---|
-| — | — | — | — |
+| `v1.0.0` | 2026-09-12 | `^2.0` | [Browse](https://github.com/flarchive/ernestdefoe-warren/tree/archive/v1.0.0) |
+| `v1.0.1` | 2026-09-13 | `^2.0` | [Browse](https://github.com/flarchive/ernestdefoe-warren/tree/archive/v1.0.1) |
+| `v1.0.2` | 2026-10-11 | `^2.0` | [Browse](https://github.com/flarchive/ernestdefoe-warren/tree/archive/v1.0.2) |
+| `v1.0.3` | 2026-10-18 | `^2.0` | [Browse](https://github.com/flarchive/ernestdefoe-warren/tree/archive/v1.0.3) |
 
 Catalog entry: [packages/ernestdefoe-warren.json](https://github.com/flarchive/archive-index/blob/main/packages/ernestdefoe-warren.json)
 
