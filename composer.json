@@ -1,0 +1,82 @@
+{
+    "name": "ernestdefoe/warren",
+    "description": "Warren — a Reddit-inspired theme for Flarum 2. Compact post rows with a vote pill, image and text previews, Hot/New/Top sorting, a collapsible rail and threaded comments. Shares fof/gamification's vote tables, so nothing is lost either way.",
+    "type": "flarum-extension",
+    "keywords": [
+        "flarum",
+        "flarum-extension",
+        "theme",
+        "reddit",
+        "votes",
+        "threaded",
+        "warren"
+    ],
+    "homepage": "https://github.com/ernestdefoe/warren",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ernestdefoe",
+            "email": "ernestdefoe@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "flarum/core": "^2.0"
+    },
+    "suggest": {
+        "fof/gamification": "Warren shares this extension's vote tables rather than keeping its own, so votes cast through either are visible to both. Install it for ranks, vote notifications and its own voting UI; Warren stands its own voting down when it is enabled.",
+        "flarum/mentions": "Threaded comments are rendered from the reply graph mentions already stores. Without it every discussion renders flat.",
+        "flarum/tags": "Community chips on every row and the tag list in the left rail.",
+        "fof/upload": "Thumbnails on link rows come from post attachments."
+    },
+    "autoload": {
+        "psr-4": {
+            "ErnestDefoe\\Warren\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ErnestDefoe\\Warren\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "flarum-extension": {
+            "title": "Warren",
+            "category": "theme",
+            "icon": {
+                "name": "fas fa-arrow-up",
+                "backgroundColor": "#D93A00",
+                "color": "#fff"
+            }
+        }
+    },
+    "support": {
+        "forum": "https://discuss.flarum.org/d/39850-warren-a-reddit-inspired-theme-built-using-ai",
+        "issues": "https://github.com/ernestdefoe/warren/issues",
+        "source": "https://github.com/ernestdefoe/warren"
+    },
+    "require-dev": {
+        "flarum/mentions": "^2.0",
+        "flarum/phpstan": "^2.0",
+        "flarum/testing": "^2.0"
+    },
+    "scripts": {
+        "test": [
+            "@test:integration"
+        ],
+        "test:integration": "phpunit -c tests/phpunit.integration.xml",
+        "test:setup": "@php tests/integration/setup.php",
+        "analyse:phpstan": "phpstan analyse"
+    },
+    "scripts-descriptions": {
+        "test": "Runs all tests.",
+        "test:integration": "Runs all integration tests.",
+        "test:setup": "Sets up a database for use with integration tests. Execute this only once.",
+        "analyse:phpstan": "Run static analysis"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "beta",
+    "prefer-stable": true
+}
